@@ -192,8 +192,29 @@
     <button class="light" onclick="toggleTrash()">🗑️ سطل زباله (<span id="trashCount">۰</span>)</button>
     <input type="file" id="importFile" accept=".json" hidden onchange="importNotes(event)">
   </div>
+  <div class="card">
+    <h3 style="margin-top:0">🎙️ بخش ویس‌ها — جدا از نوشته‌ها</h3>
+    <p style="font-size:12px;color:#888">اینجا فقط ویس ذخیره می‌شود؛ نوشته‌ها در بخش بالا می‌مانند.</p>
+    <input id="voiceTitle" placeholder="عنوان ویس (اختیاری، مثلاً یادآوری صبح)...">
+    <div class="row">
+      <button class="primary" id="voiceRecBtn" onclick="toggleVoiceRecord()">🎙️ ضبط صدا</button>
+      <button class="light" onclick="document.getElementById('voiceUpload').click()">📁 افزودن فایل صوتی</button>
+      <button class="primary" onclick="saveVoiceNote()">💾 ذخیره ویس</button>
+    </div>
+    <input type="file" id="voiceUpload" accept="audio/*" hidden onchange="uploadVoice(event)">
+    <div id="voicePreview"></div>
+  </div>
+
+  <div class="tools">
+    <button class="light" id="tabAll" onclick="setSection('all')">📂 همه بخش‌ها</button>
+    <button class="light" id="tabText" onclick="setSection('text')">✏️ فقط نوشته‌ها</button>
+    <button class="light" id="tabVoice" onclick="setSection('voice')">🎙️ فقط ویس‌ها</button>
+  </div>
+  <div class="card" id="statsBox"></div>
+
   <div id="trashBox" style="display:none"></div>
   <div id="list"></div>
+  <div id="voiceList"></div>
 </main>
 
 <button id="fab" onclick="toggleQuick()">＋</button>
@@ -223,6 +244,9 @@
 
 <script>
 let notes = JSON.parse(localStorage.getItem('myNotebook2') || localStorage.getItem('myNotebook') || '[]');
+let voices = JSON.parse(localStorage.getItem('myNotebookVoices') || '[]');
+let currentSection = 'all';
+let pendingVoiceUrl = null, voiceRecorder = null, voiceChunks = [];
 let trash = JSON.parse(localStorage.getItem('myNotebookTrash') || '[]');
 let settings = JSON.parse(localStorage.getItem('myNotebookSettings') || '{"alertMode":"both","stealth":false,"autoLock":true}');
 let theme = JSON.parse(localStorage.getItem('myNotebookTheme') || '{"header":"#7c3aed","bg":"#fdf4ff","primary":"#db2777","card":"#ffffff","preset":"cool"}');
@@ -230,7 +254,63 @@ let pendingImages = [], pendingAudio = [];
 let editingId = null, currentBannerId = null, camStream = null, scanMode = false;
 let recorder = null, chunks = [], idleTimer = null;
 
-function persist(){ localStorage.setItem('myNotebook2', JSON.stringify(notes)); localStorage.setItem('myNotebookTrash', JSON.stringify(trash)); document.getElementById('trashCount').textContent = trash.length; }
+function persist(){ localStorage.setItem('myNotebook2', JSON.stringify(notes)); localStorage.setItem('myNotebookVoices', JSON.stringify(voices)); localStorage.setItem('myNotebookTrash', JSON.stringify(trash)); document.getElementById('trashCount').textContent = trash.length; }
+function setSection(s){
+  currentSection = s;
+  document.getElementById('list').style.display = (s==='voice') ? 'none' : 'block';
+  document.getElementById('voiceList').style.display = (s==='text') ? 'none' : 'block';
+  renderVoices(); renderStats();
+}
+function renderStats(){
+  const all = [...notes, ...voices];
+  const first = all.length ? all.reduce((a,b)=> a.id<b.id?a:b) : null;
+  document.getElementById('statsBox').innerHTML = '<b>جزئیات دفترچه:</b> ' + notes.length + ' نوشته · ' + voices.length + ' ویس' + (first ? ' · تاریخ اولین یادداشت: ' + esc(first.date) : ' · هنوز یادداشتی ثبت نشده است.');
+}
+async function toggleVoiceRecord(){
+  const btn=document.getElementById('voiceRecBtn');
+  if(voiceRecorder && voiceRecorder.state==='recording'){ voiceRecorder.stop(); btn.textContent='🎙️ ضبط صدا'; return; }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    voiceChunks=[]; voiceRecorder=new MediaRecorder(stream);
+    voiceRecorder.ondataavailable=e=>voiceChunks.push(e.data);
+    voiceRecorder.onstop=()=>{
+      const blob=new Blob(voiceChunks,{type:'audio/webm'});
+      const r=new FileReader(); r.onload=()=>{ pendingVoiceUrl=r.result; renderVoicePreview(); }; r.readAsDataURL(blob);
+      stream.getTracks().forEach(t=>t.stop());
+    };
+    voiceRecorder.start(); btn.textContent='⏹️ توقف ضبط...';
+  }catch{ alert('دسترسی به میکروفون ممکن نشد.'); }
+}
+function uploadVoice(e){
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader(); r.onload=()=>{ pendingVoiceUrl=r.result; renderVoicePreview(); }; r.readAsDataURL(file);
+}
+function renderVoicePreview(){
+  document.getElementById('voicePreview').innerHTML = pendingVoiceUrl ? `<audio controls src="${pendingVoiceUrl}" style="width:100%"></audio>` : '';
+}
+function saveVoiceNote(){
+  if(!pendingVoiceUrl){ alert('اول صدا ضبط کن یا یک فایل صوتی اضافه کن.'); return; }
+  const title=document.getElementById('voiceTitle').value.trim();
+  voices.unshift({id:Date.now(), kind:'voice', title:title||'ویس بدون عنوان', audio:pendingVoiceUrl, date:new Date().toLocaleString('fa-IR')});
+  pendingVoiceUrl=null; document.getElementById('voiceTitle').value=''; renderVoicePreview();
+  persist(); renderVoices(); renderStats();
+  alert('ویس ذخیره شد.');
+}
+function renderVoices(){
+  const box=document.getElementById('voiceList');
+  if(!voices.length){ box.innerHTML = currentSection==='voice' ? '<div class="card empty">هنوز ویسی نیست. بالا ضبط کن 🎙️</div>' : ''; return; }
+  box.innerHTML = '<div class="card"><h3 style="margin-top:0">🎙️ ویس‌ها</h3>' + voices.map(v=>`
+    <div data-voice-id="${v.id}" style="border-bottom:1px solid #eee;padding:10px 0">
+      <b>${esc(v.title)}</b> <span style="font-size:12px;color:#888">${esc(v.date)}</span>
+      <audio controls src="${v.audio}" style="width:100%;margin:6px 0"></audio>
+      <button class="danger small" onclick="deleteVoice(${v.id})">حذف</button>
+    </div>`).join('') + '</div>';
+}
+function deleteVoice(id){
+  const v=voices.find(x=>x.id===id); if(!v) return;
+  const el=document.querySelector('[data-voice-id="'+id+'"]');
+  voices=voices.filter(x=>x.id!==id); trash.unshift({...v, kind:'voice'}); persist(); renderVoices(); renderStats();
+}
 function saveSettings(){
   settings.alertMode = document.getElementById('alertMode').value;
   settings.stealth = document.getElementById('stealth').checked;
@@ -419,7 +499,7 @@ function toggleTrash(){
     <button class="danger small" onclick="purgeNote(${n.id})">حذف همیشگی</button></div>`).join('')
     + '<div style="margin-top:10px"><button class="danger small" onclick="emptyTrash()">خالی کردن سطل</button></div>' : '<p>سطل خالی است.</p>') + '</div>';
 }
-function restoreNote(id){ const n=trash.find(x=>x.id===id); if(n){ trash=trash.filter(x=>x.id!==id); notes.unshift(n); persist(); render(); toggleTrash(); toggleTrash(); } }
+function restoreNote(id){ const n=trash.find(x=>x.id===id); if(n){ trash=trash.filter(x=>x.id!==id); if(n.kind==='voice'){ voices.unshift(n); renderVoices(); } else notes.unshift(n); persist(); render(); renderStats(); toggleTrash(); toggleTrash(); } }
 function purgeNote(id){ if(confirm('برای همیشه پاک شود؟')){ trash=trash.filter(x=>x.id!==id); persist(); render(); toggleTrash(); toggleTrash(); } }
 function emptyTrash(){ if(confirm('همه سطل زباله خالی شود؟')){ trash=[]; persist(); render(); toggleTrash(); } }
 function togglePin(id){ const n=notes.find(x=>x.id===id); if(n){ n.pinned=!n.pinned; persist(); render(); } }
@@ -533,6 +613,8 @@ if(!getPin()){
   if(p && /^\d{4}$/.test(p)) setPin(p); else alert('رمز تنظیم نشد؛ از تنظیمات می‌توانی بعداً رمز بگذاری. قفل فعلاً فعال نیست.');
 } else lockNow();
 render();
+renderVoices();
+renderStats();
 setInterval(checkReminders, 20000);
 checkReminders();
 resetIdle();
