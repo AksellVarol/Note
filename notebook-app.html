@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دفترچه یادداشت</title>
+<style>
+  :root{--header:#2f5d50;--bg:#f4f1ea;--primary:#2f5d50;--card:#ffffff;--text:#222222}
+  *{box-sizing:border-box}
+  body{font-family:Tahoma,system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:0}
+  header{background:var(--header);color:#fff;padding:18px 16px;text-align:center}
+  header h1{margin:0;font-size:22px}
+  header p{margin:6px 0 0;opacity:.85;font-size:13px}
+  main{max-width:760px;margin:0 auto;padding:16px;padding-bottom:110px}
+  .card{background:var(--card);color:var(--text);border-radius:14px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:14px}
+  input,textarea,select{width:100%;font-family:inherit;font-size:15px;padding:10px;border:1px solid #ddd;border-radius:10px;margin-bottom:10px;background:#fff;color:#222}
+  input[type=color]{height:44px;padding:4px}
+  textarea{min-height:110px;resize:vertical;line-height:1.9}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:130px}
+  button{font-family:inherit;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;font-size:14px}
+  .primary{background:var(--primary);color:#fff}
+  .light{background:#eee;color:#333}
+  .danger{background:#c0392b;color:#fff}
+  .small{padding:6px 10px;font-size:12px}
+  .tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .tools input{margin:0;flex:2;min-width:180px}
+  .note{border-right:5px solid var(--primary);padding:12px 14px}
+  .note h3{margin:0 0 6px}
+  .note p{white-space:pre-wrap;line-height:1.9;margin:0 0 10px}
+  .meta{font-size:12px;color:#888;margin-bottom:10px}
+  .badge{display:inline-block;background:#e8f0ed;color:#2f5d50;border-radius:20px;padding:2px 10px;font-size:12px;margin-left:6px}
+  .empty{text-align:center;color:#888;padding:30px 10px}
+  .note img{width:100%;border-radius:10px;margin-bottom:8px}
+  .thumb{width:80px;height:80px;object-fit:cover;border-radius:8px;margin:2px}
+  .thumbwrap{display:inline-block;position:relative}
+  .thumbwrap button{position:absolute;top:0;left:0;padding:2px 6px;font-size:11px}
+  .checkline{display:flex;gap:8px;align-items:flex-start;margin-bottom:4px}
+  .checkline input{width:auto;margin:4px 0 0}
+  .checkline span{flex:1}
+  .checkline.done span{text-decoration:line-through;opacity:.6}
+  #banner{display:none;position:fixed;top:0;right:0;left:0;z-index:50;background:#f39c12;color:#222;padding:12px 16px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+  #banner b{display:block;margin-bottom:8px}
+  #lockScreen{display:none;position:fixed;inset:0;z-index:100;background:#1e2d29;color:#fff;text-align:center;padding:40px 20px}
+  #lockScreen input{max-width:260px;margin:14px auto;text-align:center;font-size:22px;letter-spacing:8px}
+  .calc{display:grid;grid-template-columns:repeat(3,70px);gap:8px;justify-content:center;margin-top:16px}
+  .calc button{background:#344e47;color:#fff;font-size:18px;padding:14px}
+  .calc button.eq{background:#e67e22}
+  #fab{position:fixed;left:16px;bottom:16px;z-index:40;width:58px;height:58px;border-radius:50%;background:var(--primary);color:#fff;font-size:26px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  #quickMenu{display:none;position:fixed;left:16px;bottom:84px;z-index:40;background:#fff;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.25);padding:10px;width:210px}
+  #quickMenu button{display:block;width:100%;text-align:right;margin-bottom:6px;background:#f0f0f0;color:#222}
+  #camModal{display:none;position:fixed;inset:0;z-index:90;background:#000;text-align:center;padding:12px}
+  #camModal video{width:100%;max-width:560px;border-radius:12px}
+  footer{text-align:center;color:#999;font-size:12px;padding:10px 0 24px}
+  /* تم باحال */
+  body.cool header{background:linear-gradient(135deg,#7c3aed,#db2777,#f59e0b)}
+  body.cool .card{border-radius:20px}
+  body.cool h1{letter-spacing:1px}
+  /* پاک شدن با پاک‌کن */
+  .erasing{animation:eraseAnim .9s ease forwards;overflow:hidden;position:relative}
+  .erasing::after{content:'🧽';position:absolute;top:40%;font-size:34px;animation:eraserMove .9s ease forwards}
+  @keyframes eraseAnim{0%{opacity:1;filter:none}60%{opacity:.6;filter:blur(1px)}100%{opacity:0;filter:blur(3px);transform:translateX(-12px) rotate(-2deg)}}
+  @keyframes eraserMove{0%{right:8px}100%{right:85%}}
+</style>
+</head>
+<body>
+<div id="banner">
+  <b id="bannerText"></b>
+  <button class="small" onclick="dismissBanner()">باشه</button>
+  <button class="small" onclick="snoozeBanner()">۱۰ دقیقه بعد دوباره بگو</button>
+  <button class="small" onclick="dismissBanner()">بستن</button>
+</div>
+
+<div id="lockScreen">
+  <h2 id="lockTitle">🔒 دفترچه قفل است</h2>
+  <p id="lockSub">رمز ۴ رقمی را وارد کن</p>
+  <div id="normalLock">
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+    <div><button class="primary" onclick="tryUnlock()">باز کردن</button></div>
+  </div>
+  <div id="stealthLock" style="display:none">
+    <div id="calcDisplay" style="background:#fff;color:#222;max-width:230px;margin:10px auto;padding:12px;border-radius:10px;font-size:20px;min-height:48px"></div>
+    <div class="calc">
+      <button onclick="calcPress('1')">۱</button><button onclick="calcPress('2')">۲</button><button onclick="calcPress('3')">۳</button>
+      <button onclick="calcPress('4')">۴</button><button onclick="calcPress('5')">۵</button><button onclick="calcPress('6')">۶</button>
+      <button onclick="calcPress('7')">۷</button><button onclick="calcPress('8')">۸</button><button onclick="calcPress('9')">۹</button>
+      <button onclick="calcPress('C')">پاک</button><button onclick="calcPress('0')">۰</button><button class="eq" onclick="calcPress('=')">=</button>
+    </div>
+    <p style="font-size:12px;opacity:.7">در حالت مخفی، این صفحه مثل ماشین‌حساب دیده می‌شود؛ رمز را بزن و = را بزن.</p>
+  </div>
+  <p id="lockMsg" style="color:#f39c12"></p>
+</div>
+
+<header>
+  <h1>📓 دفترچه یادداشت</h1>
+  <p>بدون اینترنت هم کار می‌کند؛ یادداشت‌ها روی همین گوشی می‌مانند</p>
+  <div style="margin-top:10px"><button class="small" onclick="lockNow()" style="background:#fff;color:#2f5d50">🔒 قفل کردن</button></div>
+</header>
+
+<main>
+  <div class="card">
+    <h3 style="margin-top:0">✏️ یادداشت جدید</h3>
+    <select id="template" onchange="applyTemplate()">
+      <option value="">— انتخاب الگو (اختیاری) —</option>
+      <option value="meeting">الگوی جلسه</option>
+      <option value="shopping">الگوی لیست خرید</option>
+      <option value="diary">الگوی خاطرات روزانه</option>
+      <option value="study">الگوی درس و مطالعه</option>
+      <option value="idea">الگوی ایده</option>
+      <option value="checklist">الگوی چک‌لیست</option>
+    </select>
+    <input id="title" placeholder="عنوان یادداشت...">
+    <textarea id="text" placeholder="متن یادداشت را اینجا بنویس...&#10;برای چک‌لیست، هر خط را این‌طور بنویس: - [ ] انجام کار" oninput="updateCount()"></textarea>
+    <div style="font-size:12px;color:#888;margin-bottom:8px"><span id="wordCount">۰ کلمه</span> · <button class="light small" onclick="insertChecklist()">☑️ افزودن خط چک‌لیست</button></div>
+    <div class="row">
+      <select id="category">
+        <option value="عمومی">عمومی</option><option value="کار">کار</option><option value="درس">درس</option>
+        <option value="شخصی">شخصی</option><option value="خرید">خرید</option><option value="ایده">ایده</option>
+      </select>
+      <select id="color">
+        <option value="#2f5d50">سبز</option><option value="#b7791f">زرد</option>
+        <option value="#7d3c98">بنفش</option><option value="#2166ac">آبی</option><option value="#c0392b">قرمز</option>
+      </select>
+    </div>
+    <label style="font-size:13px">⏰ یادآوری (اختیاری)</label>
+    <input id="reminder" type="datetime-local">
+    <label style="font-size:13px">🖼️ عکس و 🎙️ صدا همراه یادداشت</label>
+    <div class="row">
+      <button class="light" onclick="document.getElementById('photoInput').click()">📁 عکس از گالری</button>
+      <button class="light" onclick="openCamera(false)">📷 عکس با دوربین</button>
+      <button class="light" onclick="openCamera(true)">🖨️ اسکن با دوربین</button>
+      <button class="light" id="recBtn" onclick="toggleRecord()">🎙️ ضبط صدا</button>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" multiple hidden onchange="addPhotos(event)">
+    <div id="photoPreview"></div>
+    <div id="audioPreview"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="primary" onclick="saveNote()">💾 ذخیره یادداشت</button>
+      <button class="light" onclick="clearForm()">پاک کردن فرم</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">🎨 رنگ‌بندی بخش‌ها — خودت انتخاب کن</h3>
+    <p style="font-size:12px;color:#888">هر رنگی را عوض کنی، همان لحظه روی کل اپ اعمال می‌شود و ذخیره می‌ماند.</p>
+    <div class="row">
+      <div><label style="font-size:13px">سربرگ</label><input type="color" id="cHeader" onchange="clearPreset();applyTheme()"></div>
+      <div><label style="font-size:13px">پس‌زمینه</label><input type="color" id="cBg" onchange="clearPreset();applyTheme()"></div>
+      <div><label style="font-size:13px">دکمه‌ها</label><input type="color" id="cPrimary" onchange="clearPreset();applyTheme()"></div>
+      <div><label style="font-size:13px">کارت یادداشت‌ها</label><input type="color" id="cCard" onchange="clearPreset();applyTheme()"></div>
+    </div>
+    <div class="row">
+      <button class="light" onclick="setPreset('green')">🌿 سبز پیش‌فرض</button>
+      <button class="light" onclick="setPreset('blue')">🔵 آبی</button>
+      <button class="light" onclick="setPreset('purple')">🟣 بنفش</button>
+      <button class="light" onclick="setPreset('dark')">🌙 تیره</button>
+      <button class="light" onclick="setPreset('cream')">☀️ کرمی</button>
+      <button class="light" onclick="setPreset('cool')">🎨 باحال (گرادیانی)</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">⚙️ تنظیمات هشدار و قفل</h3>
+    <label style="font-size:13px">نوع هشدار یادآوری</label>
+    <select id="alertMode" onchange="saveSettings()">
+      <option value="both">بنر بالای صفحه + صدا</option>
+      <option value="banner">فقط بنر بالای صفحه (بدون صدا)</option>
+      <option value="sound">فقط صدا</option>
+    </select>
+    <div class="row">
+      <button class="light" onclick="enableNotifications()">🔔 فعال کردن اعلان سیستمی گوشی</button>
+      <button class="light" onclick="changePin()">تغییر رمز قفل</button>
+    </div>
+    <label><input type="checkbox" id="stealth" onchange="saveSettings()" style="width:auto"> حالت مخفی: صفحه قفل مثل ماشین‌حساب دیده شود</label><br>
+    <label><input type="checkbox" id="autoLock" onchange="saveSettings()" style="width:auto"> قفل خودکار بعد از ۵ دقیقه بی‌کاری</label>
+    <p style="font-size:12px;color:#888">نکته: قفل این اپ جلوی نگاه اتفاقی دیگران را می‌گیرد؛ رمزنگاری کامل فایل نیست.</p>
+  </div>
+
+  <div class="tools">
+    <input id="search" placeholder="🔍 جستجو در عنوان و متن..." oninput="render()">
+    <select id="filter" onchange="render()" style="flex:1;min-width:130px">
+      <option value="">همه دسته‌ها</option><option value="عمومی">عمومی</option><option value="کار">کار</option>
+      <option value="درس">درس</option><option value="شخصی">شخصی</option><option value="خرید">خرید</option><option value="ایده">ایده</option>
+    </select>
+    <select id="sortBy" onchange="render()" style="flex:1;min-width:130px">
+      <option value="new">جدیدترین اول</option><option value="old">قدیمی‌ترین اول</option><option value="title">بر اساس عنوان</option>
+    </select>
+  </div>
+  <div class="tools">
+    <button class="light" onclick="exportNotes()">📤 خروجی (JSON)</button>
+    <button class="light" onclick="document.getElementById('importFile').click()">📥 وارد کردن</button>
+    <button class="light" onclick="toggleTrash()">🗑️ سطل زباله (<span id="trashCount">۰</span>)</button>
+    <input type="file" id="importFile" accept=".json" hidden onchange="importNotes(event)">
+  </div>
+  <div id="trashBox" style="display:none"></div>
+  <div id="list"></div>
+</main>
+
+<button id="fab" onclick="toggleQuick()">＋</button>
+<div id="quickMenu">
+  <button onclick="quickNew()">✏️ یادداشت جدید</button>
+  <button onclick="quickPhoto()">🖼️ یادداشت عکس‌دار</button>
+  <button onclick="openCamera(true)">🖨️ اسکن با دوربین</button>
+  <button onclick="quickSearch()">🔍 جستجو</button>
+  <button onclick="lockNow()">🔒 قفل کردن</button>
+</div>
+
+<div id="camModal">
+  <video id="video" autoplay playsinline></video>
+  <div style="margin-top:10px">
+    <select id="camFilter" style="max-width:300px;margin:0 auto 10px">
+      <option value="normal">عادی</option>
+      <option value="scan">اسکن (سیاه و سفید، کنتراست بالا)</option>
+    </select>
+    <div class="row" style="max-width:400px;margin:0 auto">
+      <button class="primary" onclick="capturePhoto()">📸 گرفتن عکس</button>
+      <button class="light" onclick="closeCamera()">بستن</button>
+    </div>
+  </div>
+</div>
+
+<footer>برای دسترسی سریع، در مرورگر گوشی گزینه «Add to Home Screen» را بزن تا آیکونش روی صفحه اصلی بیاید.</footer>
+
+<script>
+let notes = JSON.parse(localStorage.getItem('myNotebook2') || localStorage.getItem('myNotebook') || '[]');
+let trash = JSON.parse(localStorage.getItem('myNotebookTrash') || '[]');
+let settings = JSON.parse(localStorage.getItem('myNotebookSettings') || '{"alertMode":"both","stealth":false,"autoLock":true}');
+let theme = JSON.parse(localStorage.getItem('myNotebookTheme') || '{"header":"#7c3aed","bg":"#fdf4ff","primary":"#db2777","card":"#ffffff","preset":"cool"}');
+let pendingImages = [], pendingAudio = [];
+let editingId = null, currentBannerId = null, camStream = null, scanMode = false;
+let recorder = null, chunks = [], idleTimer = null;
+
+function persist(){ localStorage.setItem('myNotebook2', JSON.stringify(notes)); localStorage.setItem('myNotebookTrash', JSON.stringify(trash)); document.getElementById('trashCount').textContent = trash.length; }
+function saveSettings(){
+  settings.alertMode = document.getElementById('alertMode').value;
+  settings.stealth = document.getElementById('stealth').checked;
+  settings.autoLock = document.getElementById('autoLock').checked;
+  localStorage.setItem('myNotebookSettings', JSON.stringify(settings));
+  applyLockMode();
+}
+/* رنگ‌بندی */
+const presets = {
+  green:{header:'#2f5d50',bg:'#f4f1ea',primary:'#2f5d50',card:'#ffffff'},
+  blue:{header:'#1f4e79',bg:'#eaf2f8',primary:'#2166ac',card:'#ffffff'},
+  purple:{header:'#5b2c86',bg:'#f3eefb',primary:'#7d3c98',card:'#ffffff'},
+  dark:{header:'#1a1a1a',bg:'#222222',primary:'#e67e22',card:'#333333'},
+  cream:{header:'#b7791f',bg:'#fdf6e3',primary:'#b7791f',card:'#ffffff'},
+  cool:{header:'#7c3aed',bg:'#fdf4ff',primary:'#db2777',card:'#ffffff'}
+};
+function applyTheme(){
+  theme.header=document.getElementById('cHeader').value;
+  theme.bg=document.getElementById('cBg').value;
+  theme.primary=document.getElementById('cPrimary').value;
+  theme.card=document.getElementById('cCard').value;
+  localStorage.setItem('myNotebookTheme', JSON.stringify(theme));
+  const r=document.documentElement.style;
+  r.setProperty('--header',theme.header); r.setProperty('--bg',theme.bg);
+  r.setProperty('--primary',theme.primary); r.setProperty('--card',theme.card);
+  r.setProperty('--text', theme===presets.dark || theme.card==='#333333' ? '#f0f0f0' : '#222222');
+  document.body.classList.toggle('cool', theme.preset==='cool');
+}
+function clearPreset(){ theme.preset=null; }
+function setPreset(name){
+  theme = {...presets[name], preset:name};
+  document.getElementById('cHeader').value=theme.header; document.getElementById('cBg').value=theme.bg;
+  document.getElementById('cPrimary').value=theme.primary; document.getElementById('cCard').value=theme.card;
+  applyTheme();
+}
+/* قفل */
+function hashPin(p){ let h=0; for(let i=0;i<p.length;i++){ h=((h<<5)-h)+p.charCodeAt(i); h|=0; } return 'h'+h; }
+function getPin(){ return localStorage.getItem('myNotebookPin'); }
+function setPin(p){ localStorage.setItem('myNotebookPin', hashPin(p)); }
+function applyLockMode(){
+  const stealth = settings.stealth;
+  document.getElementById('normalLock').style.display = stealth ? 'none' : 'block';
+  document.getElementById('stealthLock').style.display = stealth ? 'block' : 'none';
+  document.getElementById('lockTitle').textContent = stealth ? '🧮 ماشین حساب' : '🔒 دفترچه قفل است';
+  document.getElementById('lockSub').textContent = stealth ? '' : 'رمز ۴ رقمی را وارد کن';
+}
+let calcVal = '';
+function calcPress(k){
+  if(k==='C'){ calcVal=''; }
+  else if(k==='='){
+    if(getPin() && hashPin(calcVal)===getPin()){ unlock(); }
+    else { document.getElementById('lockMsg').textContent='رمز درست نیست.'; calcVal=''; }
+  } else if(calcVal.length<4){ calcVal+=k; }
+  document.getElementById('calcDisplay').textContent = calcVal.replace(/./g,'•');
+}
+function lockNow(){ document.getElementById('lockScreen').style.display='block'; document.getElementById('lockMsg').textContent=''; }
+function unlock(){ document.getElementById('lockScreen').style.display='none'; resetIdle(); }
+function tryUnlock(){
+  const v=document.getElementById('pinInput').value;
+  if(getPin() && hashPin(v)===getPin()){ unlock(); document.getElementById('pinInput').value=''; }
+  else document.getElementById('lockMsg').textContent='رمز درست نیست.';
+}
+function changePin(){
+  const p=prompt('رمز ۴ رقمی جدید را وارد کن:');
+  if(p && /^\d{4}$/.test(p)){ setPin(p); alert('رمز عوض شد.'); }
+  else if(p) alert('رمز باید دقیقاً ۴ رقم باشد.');
+}
+function resetIdle(){
+  clearTimeout(idleTimer);
+  if(settings.autoLock && getPin()) idleTimer=setTimeout(lockNow, 5*60*1000);
+}
+document.addEventListener('click', resetIdle); document.addEventListener('keydown', resetIdle);
+function toggleQuick(){ const m=document.getElementById('quickMenu'); m.style.display = m.style.display==='block' ? 'none' : 'block'; }
+function quickNew(){ toggleQuick(); window.scrollTo({top:0,behavior:'smooth'}); document.getElementById('title').focus(); }
+function quickPhoto(){ toggleQuick(); window.scrollTo({top:0,behavior:'smooth'}); document.getElementById('photoInput').click(); }
+function quickSearch(){ toggleQuick(); document.getElementById('search').focus(); }
+
+const templates = {
+  meeting:{title:'جلسه با ...', text:'تاریخ:\nموضوع:\nحاضران:\nتصمیم‌ها:\nکارهای بعدی:'},
+  shopping:{title:'لیست خرید', text:'- [ ] \n- [ ] \n- [ ] '},
+  diary:{title:'خاطرات امروز', text:'امروز ...\nحس و حالم:\nمهم‌ترین اتفاق:'},
+  study:{title:'درس ...', text:'موضوع:\nنکته‌های مهم:\nسؤال‌هایی که مانده:'},
+  idea:{title:'ایده: ...', text:'ایده:\nچرا خوب است؟\nقدم بعدی:'},
+  checklist:{title:'چک‌لیست', text:'- [ ] کار اول\n- [ ] کار دوم\n- [ ] کار سوم'}
+};
+function applyTemplate(){
+  const t=templates[document.getElementById('template').value]; if(!t) return;
+  const ti=document.getElementById('title'), te=document.getElementById('text');
+  if((ti.value||te.value) && !confirm('متن فرم با الگو جایگزین شود؟')) return;
+  ti.value=t.title; te.value=t.text; updateCount();
+}
+function insertChecklist(){ const te=document.getElementById('text'); te.value += (te.value?'\n':'') + '- [ ] '; te.focus(); updateCount(); }
+function updateCount(){
+  const t=document.getElementById('text').value.trim();
+  const w=t ? t.split(/\s+/).length : 0;
+  document.getElementById('wordCount').textContent = w + ' کلمه';
+}
+function processImage(file, cb){
+  const img=new Image();
+  img.onload=()=>{
+    const max=1200, scale=Math.min(1, max/Math.max(img.width, img.height));
+    const c=document.createElement('canvas'); c.width=img.width*scale; c.height=img.height*scale;
+    const ctx=c.getContext('2d');
+    if(scanMode) ctx.filter='grayscale(1) contrast(1.6)';
+    ctx.drawImage(img,0,0,c.width,c.height);
+    cb(c.toDataURL('image/jpeg',0.8));
+  };
+  img.src=URL.createObjectURL(file);
+}
+function addPhotos(e){ [...e.target.files].forEach(f=>processImage(f, url=>{ pendingImages.push(url); renderPreview(); })); }
+function renderPreview(){
+  document.getElementById('photoPreview').innerHTML = pendingImages.map((u,i)=>
+    `<span class="thumbwrap"><img class="thumb" src="${u}"><button class="danger" onclick="pendingImages.splice(${i},1);renderPreview()">✕</button></span>`).join('');
+  document.getElementById('audioPreview').innerHTML = pendingAudio.map((u,i)=>
+    `<div><audio controls src="${u}" style="width:100%"></audio> <button class="danger small" onclick="pendingAudio.splice(${i},1);renderPreview()">حذف صدا</button></div>`).join('');
+}
+async function toggleRecord(){
+  const btn=document.getElementById('recBtn');
+  if(recorder && recorder.state==='recording'){ recorder.stop(); btn.textContent='🎙️ ضبط صدا'; return; }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    chunks=[]; recorder=new MediaRecorder(stream);
+    recorder.ondataavailable=e=>chunks.push(e.data);
+    recorder.onstop=()=>{
+      const blob=new Blob(chunks,{type:'audio/webm'});
+      const r=new FileReader(); r.onload=()=>{ pendingAudio.push(r.result); renderPreview(); }; r.readAsDataURL(blob);
+      stream.getTracks().forEach(t=>t.stop());
+    };
+    recorder.start(); btn.textContent='⏹️ توقف ضبط...';
+  }catch{ alert('دسترسی به میکروفون ممکن نشد.'); }
+}
+async function openCamera(scan){
+  scanMode=scan; document.getElementById('quickMenu').style.display='none';
+  document.getElementById('camModal').style.display='block';
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    document.getElementById('video').srcObject=camStream;
+  }catch{ alert('دسترسی به دوربین ممکن نشد؛ از «عکس از گالری» استفاده کن که روی گوشی دوربین را هم باز می‌کند.'); closeCamera(); document.getElementById('photoInput').click(); }
+}
+function closeCamera(){ document.getElementById('camModal').style.display='none'; if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
+function capturePhoto(){
+  const v=document.getElementById('video'), c=document.createElement('canvas');
+  c.width=v.videoWidth; c.height=v.videoHeight; const ctx=c.getContext('2d');
+  if(document.getElementById('camFilter').value==='scan') ctx.filter='grayscale(1) contrast(1.6)';
+  ctx.drawImage(v,0,0);
+  const max=1200, scale=Math.min(1, max/Math.max(c.width,c.height));
+  const c2=document.createElement('canvas'); c2.width=c.width*scale; c2.height=c.height*scale;
+  c2.getContext('2d').drawImage(c,0,0,c2.width,c2.height);
+  pendingImages.push(c2.toDataURL('image/jpeg',0.8)); renderPreview(); closeCamera();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function clearForm(){
+  document.getElementById('title').value=''; document.getElementById('text').value='';
+  document.getElementById('reminder').value=''; pendingImages=[]; pendingAudio=[]; renderPreview(); editingId=null; updateCount();
+}
+function saveNote(){
+  const title=document.getElementById('title').value.trim();
+  const text=document.getElementById('text').value.trim();
+  if(!title && !text && !pendingImages.length && !pendingAudio.length){ alert('عنوان، متن، عکس یا صدا را وارد کن.'); return; }
+  const data={title, text, category:document.getElementById('category').value, color:document.getElementById('color').value,
+    reminder:document.getElementById('reminder').value||null, images:[...pendingImages], audios:[...pendingAudio], date:new Date().toLocaleString('fa-IR')};
+  if(editingId){ Object.assign(notes.find(x=>x.id===editingId), data); }
+  else notes.unshift({id:Date.now(), pinned:false, reminderNotified:false, ...data});
+  persist(); clearForm(); render();
+}
+function editNote(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  document.getElementById('title').value=n.title; document.getElementById('text').value=n.text;
+  document.getElementById('category').value=n.category; document.getElementById('color').value=n.color;
+  document.getElementById('reminder').value=n.reminder||''; pendingImages=[...(n.images||[])]; pendingAudio=[...(n.audios||[])]; renderPreview();
+  editingId=id; updateCount(); window.scrollTo({top:0,behavior:'smooth'});
+}
+function deleteNote(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  const el=document.querySelector('[data-id="'+id+'"]');
+  const doDelete=()=>{ notes=notes.filter(x=>x.id!==id); trash.unshift(n); persist(); render(); };
+  if(el){ el.classList.add('erasing'); setTimeout(doDelete, 900); }
+  else doDelete();
+}
+function toggleTrash(){
+  const box=document.getElementById('trashBox');
+  box.style.display = box.style.display==='block' ? 'none' : 'block';
+  box.innerHTML = '<div class="card"><h3>🗑️ سطل زباله</h3>' + (trash.length ? trash.map(n=>`
+    <div style="border-bottom:1px solid #eee;padding:8px 0">${esc(n.title||'بدون عنوان')}
+    <button class="light small" onclick="restoreNote(${n.id})">بازگردانی</button>
+    <button class="danger small" onclick="purgeNote(${n.id})">حذف همیشگی</button></div>`).join('')
+    + '<div style="margin-top:10px"><button class="danger small" onclick="emptyTrash()">خالی کردن سطل</button></div>' : '<p>سطل خالی است.</p>') + '</div>';
+}
+function restoreNote(id){ const n=trash.find(x=>x.id===id); if(n){ trash=trash.filter(x=>x.id!==id); notes.unshift(n); persist(); render(); toggleTrash(); toggleTrash(); } }
+function purgeNote(id){ if(confirm('برای همیشه پاک شود؟')){ trash=trash.filter(x=>x.id!==id); persist(); render(); toggleTrash(); toggleTrash(); } }
+function emptyTrash(){ if(confirm('همه سطل زباله خالی شود؟')){ trash=[]; persist(); render(); toggleTrash(); } }
+function togglePin(id){ const n=notes.find(x=>x.id===id); if(n){ n.pinned=!n.pinned; persist(); render(); } }
+function duplicateNote(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  notes.unshift({...JSON.parse(JSON.stringify(n)), id:Date.now(), title:(n.title||'بدون عنوان')+' (کپی)'}); persist(); render();
+}
+function copyNote(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  const txt=(n.title||'')+'\n'+(n.text||'');
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(()=>alert('متن یادداشت کپی شد.'));
+  else alert(txt);
+}
+async function shareNote(id){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  const txt=(n.title||'')+'\n'+(n.text||'');
+  if(navigator.share){ try{ await navigator.share({title:n.title||'یادداشت', text:txt}); }catch{} }
+  else copyNote(id);
+}
+function toggleCheck(id, idx){
+  const n=notes.find(x=>x.id===id); if(!n) return;
+  const lines=n.text.split('\n');
+  const m=lines[idx].match(/^- \[( |x)\] (.*)$/);
+  if(m) lines[idx]='- ['+(m[1]===' '?'x':' ')+'] '+m[2];
+  n.text=lines.join('\n'); persist(); render();
+}
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderText(n){
+  return n.text.split('\n').map((line,i)=>{
+    const m=line.match(/^- \[( |x)\] (.*)$/);
+    if(m) return `<div class="checkline ${m[1]==='x'?'done':''}"><input type="checkbox" ${m[1]==='x'?'checked':''} onclick="toggleCheck(${n.id},${i})"><span>${esc(m[2])}</span></div>`;
+    return esc(line);
+  }).join('<br>');
+}
+function render(){
+  const q=(document.getElementById('search').value||'').trim();
+  const f=document.getElementById('filter').value;
+  const s=document.getElementById('sortBy').value;
+  const list=document.getElementById('list');
+  let sorted=[...notes].sort((a,b)=>(b.pinned-a.pinned)||(b.id-a.id));
+  if(s==='old') sorted=[...notes].sort((a,b)=>(b.pinned-a.pinned)||(a.id-b.id));
+  if(s==='title') sorted=[...notes].sort((a,b)=>(b.pinned-a.pinned)||((a.title||'').localeCompare(b.title||'','fa')));
+  const shown=sorted.filter(n=>(!f||n.category===f)&&(!q||(n.title+n.text).includes(q)));
+  if(!shown.length){ list.innerHTML='<div class="card empty">هنوز یادداشتی نیست. اولین یادداشتت را بالا بنویس ✏️</div>'; return; }
+  list.innerHTML=shown.map(n=>`
+    <div class="card note" data-id="${n.id}" style="border-right-color:${n.color}">
+      <h3>${n.pinned?'📌 ':''}${esc(n.title||'بدون عنوان')}</h3>
+      <div class="meta"><span class="badge">${esc(n.category)}</span> ${esc(n.date)} ${n.reminder?('⏰ '+esc(new Date(n.reminder).toLocaleString('fa-IR'))):''}</div>
+      ${(n.images||[]).map(u=>`<img src="${u}">`).join('')}
+      ${(n.audios||[]).map(u=>`<audio controls src="${u}" style="width:100%;margin-bottom:8px"></audio>`).join('')}
+      <p>${renderText(n)}</p>
+      <button class="light small" onclick="togglePin(${n.id})">${n.pinned?'برداشتن سنجاق':'📌 سنجاق'}</button>
+      <button class="light small" onclick="editNote(${n.id})">ویرایش</button>
+      <button class="light small" onclick="duplicateNote(${n.id})">کپی</button>
+      <button class="light small" onclick="shareNote(${n.id})">اشتراک</button>
+      <button class="danger small" onclick="deleteNote(${n.id})">حذف</button>
+    </div>`).join('');
+}
+function exportNotes(){
+  const blob=new Blob([JSON.stringify(notes,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='my-notes.json'; a.click();
+}
+function importNotes(e){
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const data=JSON.parse(r.result); if(Array.isArray(data)){ notes=data.concat(notes); persist(); render(); alert('وارد شد.'); } else alert('فایل معتبر نیست.'); }catch{ alert('فایل معتبر نیست.'); } };
+  r.readAsText(file);
+}
+function playSound(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    [0,0.25,0.5].forEach(t=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value=880; g.gain.setValueAtTime(0.2, ctx.currentTime+t); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+t+0.2); o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.22); });
+  }catch{}
+}
+function enableNotifications(){
+  if(!('Notification' in window)){ alert('این مرورگر اعلان سیستمی ندارد؛ بنر بالای صفحه کار می‌کند.'); return; }
+  Notification.requestPermission().then(p=>alert(p==='granted' ? 'اعلان سیستمی فعال شد.' : 'اجازه اعلان داده نشد؛ بنر داخل اپ همچنان کار می‌کند.'));
+}
+function checkReminders(){
+  const now=new Date();
+  const due=notes.find(n=>n.reminder && !n.reminderNotified && new Date(n.reminder)<=now);
+  if(!due) return;
+  currentBannerId=due.id;
+  document.getElementById('bannerText').textContent='⏰ یادآوری: '+(due.title||'یادداشت بدون عنوان');
+  document.getElementById('banner').style.display='block';
+  if(settings.alertMode!=='banner') playSound();
+  if('Notification' in window && Notification.permission==='granted'){
+    new Notification('⏰ یادآوری دفترچه', {body: due.title||'یادداشت بدون عنوان'});
+  }
+}
+function dismissBanner(){
+  const n=notes.find(x=>x.id===currentBannerId); if(n){ n.reminderNotified=true; persist(); }
+  document.getElementById('banner').style.display='none'; currentBannerId=null;
+}
+function snoozeBanner(){
+  const n=notes.find(x=>x.id===currentBannerId);
+  if(n){ n.reminder=new Date(Date.now()+10*60000).toISOString().slice(0,16); n.reminderNotified=false; persist(); render(); }
+  document.getElementById('banner').style.display='none'; currentBannerId=null;
+}
+/* شروع */
+document.getElementById('alertMode').value=settings.alertMode||'both';
+document.getElementById('stealth').checked=!!settings.stealth;
+document.getElementById('autoLock').checked=settings.autoLock!==false;
+document.getElementById('cHeader').value=theme.header; document.getElementById('cBg').value=theme.bg;
+document.getElementById('cPrimary').value=theme.primary; document.getElementById('cCard').value=theme.card;
+(function(){ const r=document.documentElement.style; r.setProperty('--header',theme.header); r.setProperty('--bg',theme.bg); r.setProperty('--primary',theme.primary); r.setProperty('--card',theme.card); document.body.classList.toggle('cool', theme.preset==='cool'); })();
+applyLockMode();
+persist();
+if(!getPin()){
+  const p=prompt('برای اولین بار، یک رمز ۴ رقمی برای قفل دفترچه انتخاب کن:');
+  if(p && /^\d{4}$/.test(p)) setPin(p); else alert('رمز تنظیم نشد؛ از تنظیمات می‌توانی بعداً رمز بگذاری. قفل فعلاً فعال نیست.');
+} else lockNow();
+render();
+setInterval(checkReminders, 20000);
+checkReminders();
+resetIdle();
+</script>
+</body>
+</html>
